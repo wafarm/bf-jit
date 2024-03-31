@@ -12,6 +12,10 @@ libc = "0.2.153"
 version = "1.21.0"
 features = ["code_asm"]
 
+[dependencies.windows-sys]
+version = "0.52.0"
+features = ["Win32_Foundation", "Win32_System_Memory"]
+
 [profile.release]
-lto = "thin"
+# lto = "thin"
 opt-level = 3

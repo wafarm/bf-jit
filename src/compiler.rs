@@ -165,12 +165,19 @@ pub fn compile_to_native(program: &Vec<OpCode>) -> Result<Vec<u8>, IcedError> {
 
     // save rbx first
     a.push(rbx)?;
-    // rdi is the first argument
-    a.mov(stack_pointer, rdi)?;
+    if cfg!(unix) {
+        a.mov(stack_pointer, rdi)?;
+    } else if cfg!(windows) {
+        a.mov(stack_pointer, rcx)?;
+    } else {
+        panic!("Unsupported platform");
+    }
 
     let mut jump_stack = Vec::new();
 
-    for op in program {
+    let mut index = 0;
+    while index != program.len() {
+        let op = &program[index];
         match *op {
             OpCode::AlterValue(v) => {
                 if v == 1 {
@@ -220,8 +227,12 @@ pub fn compile_to_native(program: &Vec<OpCode>) -> Result<Vec<u8>, IcedError> {
                 a.set_label(&mut forward_label)?;
             }
             OpCode::AddMul(target, n) => {
-                a.mov(eax, n as u32)?;
-                a.mul(byte_ptr(stack_pointer))?;
+                if n == 1 {
+                    a.mov(eax, byte_ptr(stack_pointer))?;
+                } else {
+                    a.mov(eax, n as u32)?;
+                    a.mul(byte_ptr(stack_pointer))?;
+                }
                 a.add(byte_ptr(stack_pointer + target), al)?;
             },
             OpCode::SetZero => {
@@ -229,11 +240,19 @@ pub fn compile_to_native(program: &Vec<OpCode>) -> Result<Vec<u8>, IcedError> {
             }
             OpCode::Nop => (),
             OpCode::PutChar => {
-                a.movzx(edi, byte_ptr(stack_pointer))?;
+                if cfg!(unix) {
+                    a.movzx(edi, byte_ptr(stack_pointer))?;
+                } else if cfg!(windows) {
+                    a.movzx(ecx, byte_ptr(stack_pointer))?;
+                } else {
+                    panic!("Unsupported platform");
+                }
                 a.mov(rax, libc::putchar as u64)?;
                 a.call(rax)?;
             }
         }
+
+        index += 1;
     }
 
     // restore rbx since it's callee-saved

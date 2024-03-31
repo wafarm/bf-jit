@@ -1,4 +1,4 @@
-use std::{fs::File, io::Read, process::exit, time::Instant};
+use std::{fs::File, io::{Read, Write}, process::exit, time::Instant};
 
 mod compiler;
 mod mem;
@@ -26,6 +26,7 @@ fn main() {
     let compiled = timeit("compilation", || compiler::compile(&buffer));
     let func = timeit("native code generation", || {
         let native_code = compiler::compile_to_native(&compiled).unwrap();
+        File::create("native_code").unwrap().write_all(&native_code).unwrap();
         mem::write_function(native_code)
     });
 
